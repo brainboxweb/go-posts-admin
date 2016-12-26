@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ .Post.Title }}</title>
+    <style type="text/css">
+        form ul{
+            margin: 0;
+            padding: 0;
+        }
+        form li{
+            list-style: none;
+        }
+        label{
+            display:block;
+            font-size: 11px;
+        }
+        input {
+            width: 50em;
+        }
+        textarea {
+            width: 50em;
+            height: 15em;
+        }
+        textarea.keywords {
+            width: 50em;
+            height: 10em;
+        }
+        #input_description{
+            height: 3em
+        }
+    </style>
+</head>
+<body>
+<div style="width: 400px; float:right">
+    <img src="http://www.developmentthatpays.com/images/episode{{ .Post.Id }}_333.png" />
+    <p>Title: max length 70 (for YouTube)</p>
+    <p>Description: max length 150 (for Google)</p>
+</div>
+<h1>{{ .Post.Id }} - {{ .Post.Title }}</h1>
+
+<form method="post" >
+    <ul>
+        <li>
+            <label>Slug</label>
+            <input name="slug" value="{{ .Post.Slug }}"  />
+        </li>
+        <li>
+            <label>Title</label>
+
+            <input name="title" value="{{ .Post.Title }}" id="input_title" />
+            <span id="chars_title"></span>
+        </li>
+        <li>
+            <label>Description</label>
+            <textarea name="description" id="input_description" >{{ .Post.Description }}</textarea>
+            <span id="chars_description"></span>
+        </li>
+        <li>
+            <label>Keywords</label>
+
+            <textarea name="keywords" class="keywords">
+{{ range .Keywords}}{{ .}}
+{{ end }}</textarea>
+        </li>
+        <li>
+            <label>Top Result</label>
+            <input name="top_result" value="{{ .Post.TopResult }}" />
+        </li>
+        <li>
+            <label>Click to Tweet</label>
+            <input name="click_to_tweet" value="{{ .Post.ClickToTweet }}" />
+        </li>
+
+        <li>
+            <input type ="submit" value="save" />
+        </li>
+
+        <li>
+            <label>Body</label>
+            <textarea name="body">{{ .Post.Body }}</textarea>
+        </li>
+        <li>
+            <label>YouTubeId</label>
+            <input name="yt_id" value="{{ .Post.YouTubeData.Id }}" />
+        </li>
+
+        <li>
+            <label>YouTube</label>
+            <textarea name="yt_body">{{ .Post.YouTubeData.Body }}</textarea>
+        </li>
+
+        <li>
+            <label>Transcript</label>
+            <textarea name="transcript">{{ .Post.Transcript }}</textarea>
+        </li>
+
+        <li>
+            <input type ="submit" value="save" />
+        </li>
+    </ul>
+</form>
+
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script>
+    $(document).ready(function(){
+
+        var maxLengthTitle = 70;
+        var length = $('#input_title').val().length;
+        var length = maxLengthTitle - length;
+        $('#chars_title').text(length);
+
+        $('#input_title').keyup(function () {
+            var length = $(this).val().length;
+            var length = maxLengthTitle - length;
+            $('#chars_title').text(length);
+        });
+
+
+        var maxLengthDescription = 150;
+        var length = $('#input_description').val().length;
+        var length = maxLengthDescription - length;
+        $('#chars_description').text(length);
+
+        $('#input_description').keyup(function () {
+            var length = $(this).val().length;
+            var length = maxLengthDescription - length;
+            $('#chars_description').text(length);
+        });
+
+    });
+</script>
+
+
+
+</body>
+</html>

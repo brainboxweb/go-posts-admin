@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ .Post.Title }}</title>
+    <style type="text/css">
+        input {
+            width: 50em;
+        }
+        textarea {
+            width: 50em;
+            height: 15em;
+        }
+        textarea.keywords {
+            width: 50em;
+            height: 10em;
+        }
+    </style>
+</head>
+<body>
+<h1>New Post</h1>
+
+<form method="post" >
+    <input type="hidden" name="yt_id" value="{{ .Post.YouTubeData.Id }}"/>
+    <ul>
+        <li>
+            <label for="id">Id</label>
+            <input name="id" value="{{ .Post.Id }}"  />
+        </li>
+        <li>
+            <label for="slug">Slug</label>
+            <input name="slug" value="{{ .Post.Slug }}"  />
+        </li>
+        <li>
+            <input type ="submit" value="Create" />
+        </li>
+    </ul>
+</form>
+</body>
+</html>

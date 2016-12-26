@@ -1,0 +1,9 @@
+client_*
+.vscode
+.idea
+backup/**
+backup/!.gitkeep
+
+data/posts.yml
+
+request.token
