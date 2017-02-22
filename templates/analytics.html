@@ -2,18 +2,240 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>{{.Title}}</title>
+    <title>Analytics</title>
 </head>
 <body>
-<h1>{{.Title}}</h1>
+<h1>Analytics</h1>
 
-<ul>
-{{ range .Posts }}
-    <li>
-        <a href="/posts/{{ .Id }}" />{{ .Id }} - {{ .Title }}</li></a>
-    </li>
-{{ end }}
-</ul>
+
+<div id="shorttitle">
+    Short Title
+</div>
+
+<div id="longtitle">
+    Long Title
+</div>
+
+<div id="shortdescription">
+    Short Description
+</div>
+
+<div id="longdescription">
+    Long Description
+</div>
+
+
+<div id="shortbody">
+    Short Body
+</div>
+
+<div id="shortyoutubebody">
+    Short YouTube Body
+</div>
+
+<div id="toofewkeywords">
+    Too few keywords
+</div>
+
+<div id="toomanykeywords">
+    Too many keywords
+</div>
+
 
 </body>
+
+<script src="/static/jquery-3.1.1.min.js"></script>
+<script>
+    $(document).ready(function(){
+
+
+
+
+        $.ajax({
+                    url: "/ajax/longtitle",
+                    type: "GET",
+                    // The type of data we expect back
+                    dataType : "json",
+                })
+                // Code to run if the request succeeds (is done);
+                // The response is passed to the function
+                .done(function( result ) {
+                    for (i = 0; i < result.length; i++)
+                    {
+                        var listItem = $("<li>")
+                        var link = $("<a>").attr('href', '/posts/' + result[i].Id).text(result[i].Title)
+                        link.appendTo(listItem)
+                        listItem.appendTo("#longtitle")
+                    };
+                })
+                // Code to run if the request fails; the raw request and
+                // status codes are passed to the function
+                .fail(function( xhr, status, errorThrown ) {
+                    console.log( "Error: " + errorThrown );
+                })
+
+        $.ajax({
+                    url: "/ajax/shortdescription",
+                    type: "GET",
+                    // The type of data we expect back
+                    dataType : "json",
+                })
+                // Code to run if the request succeeds (is done);
+                // The response is passed to the function
+                .done(function( result ) {
+                    for (i = 0; i < result.length; i++)
+                    {
+                        var listItem = $("<li>")
+                        var link = $("<a>").attr('href', '/posts/' + result[i].Id).text(result[i].Title)
+                        link.appendTo(listItem)
+                        listItem.appendTo("#shortdescription")
+                    };
+                })
+                // Code to run if the request fails; the raw request and
+                // status codes are passed to the function
+                .fail(function( xhr, status, errorThrown ) {
+                    console.log( "Error: " + errorThrown );
+                })
+
+
+        $.ajax({
+                    url: "/ajax/shorttitle",
+                    type: "GET",
+                    // The type of data we expect back
+                    dataType : "json",
+                })
+                // Code to run if the request succeeds (is done);
+                // The response is passed to the function
+                .done(function( result ) {
+                    for (i = 0; i < result.length; i++)
+                    {
+                        var listItem = $("<li>")
+                        var link = $("<a>").attr('href', '/posts/' + result[i].Id).text(result[i].Title)
+                        link.appendTo(listItem)
+                        listItem.appendTo("#shorttitle")
+                    };
+                })
+                // Code to run if the request fails; the raw request and
+                // status codes are passed to the function
+                .fail(function( xhr, status, errorThrown ) {
+                    console.log( "Error: " + errorThrown );
+                })
+
+        $.ajax({
+                    url: "/ajax/longtitle",
+                    type: "GET",
+                    // The type of data we expect back
+                    dataType : "json",
+                })
+                // Code to run if the request succeeds (is done);
+                // The response is passed to the function
+                .done(function( result ) {
+                    for (i = 0; i < result.length; i++)
+                    {
+                        var listItem = $("<li>")
+                        var link = $("<a>").attr('href', '/posts/' + result[i].Id).text("[" + result[i].Count  + "] " +  result[i].Title)
+                        link.appendTo(listItem)
+                        listItem.appendTo("#longtitle")
+                    };
+                })
+                // Code to run if the request fails; the raw request and
+                // status codes are passed to the function
+                .fail(function( xhr, status, errorThrown ) {
+                    console.log( "Error: " + errorThrown );
+                })
+
+        $.ajax({
+                    url: "/ajax/shortbody",
+                    type: "GET",
+                    // The type of data we expect back
+                    dataType : "json",
+                })
+                // Code to run if the request succeeds (is done);
+                // The response is passed to the function
+                .done(function( result ) {
+                    for (i = 0; i < result.length; i++)
+                    {
+                        var listItem = $("<li>")
+                        var link = $("<a>").attr('href', '/posts/' + result[i].Id).text("[" + result[i].Count  + "] " +  result[i].Title)
+                        link.appendTo(listItem)
+                        listItem.appendTo("#shortbody")
+                    };
+                })
+                // Code to run if the request fails; the raw request and
+                // status codes are passed to the function
+                .fail(function( xhr, status, errorThrown ) {
+                    console.log( "Error: " + errorThrown );
+                })
+
+        $.ajax({
+                    url: "/ajax/shortyoutubebody",
+                    type: "GET",
+                    // The type of data we expect back
+                    dataType : "json",
+                })
+                // Code to run if the request succeeds (is done);
+                // The response is passed to the function
+                .done(function( result ) {
+                    for (i = 0; i < result.length; i++)
+                    {
+                        var listItem = $("<li>")
+                        var link = $("<a>").attr('href', '/posts/' + result[i].Id).text("[" + result[i].Count  + "] " +  result[i].Title)
+                        link.appendTo(listItem)
+                        listItem.appendTo("#shortyoutubebody")
+                    };
+                })
+                // Code to run if the request fails; the raw request and
+                // status codes are passed to the function
+                .fail(function( xhr, status, errorThrown ) {
+                    console.log( "Error: " + errorThrown );
+                })
+
+        $.ajax({
+                    url: "/ajax/toofewkeywords",
+                    type: "GET",
+                    // The type of data we expect back
+                    dataType : "json",
+                })
+                // Code to run if the request succeeds (is done);
+                // The response is passed to the function
+                .done(function( result ) {
+                    for (i = 0; i < result.length; i++)
+                    {
+                        var listItem = $("<li>")
+                        var link = $("<a>").attr('href', '/posts/' + result[i].Id).text("[" + result[i].Count  + "] " +  result[i].Title)
+                        link.appendTo(listItem)
+                        listItem.appendTo("#toofewkeywords")
+                    };
+                })
+                // Code to run if the request fails; the raw request and
+                // status codes are passed to the function
+                .fail(function( xhr, status, errorThrown ) {
+                    console.log( "Error: " + errorThrown );
+                })
+        $.ajax({
+                    url: "/ajax/toomanykeywords",
+                    type: "GET",
+                    // The type of data we expect back
+                    dataType : "json",
+                })
+                // Code to run if the request succeeds (is done);
+                // The response is passed to the function
+                .done(function( result ) {
+                    for (i = 0; i < result.length; i++)
+                    {
+                        var listItem = $("<li>")
+                        var link = $("<a>").attr('href', '/posts/' + result[i].Id).text("[" + result[i].Count  + "] " +  result[i].Title)
+                        link.appendTo(listItem)
+                        listItem.appendTo("#toomanykeywords")
+                    };
+                })
+                // Code to run if the request fails; the raw request and
+                // status codes are passed to the function
+                .fail(function( xhr, status, errorThrown ) {
+                    console.log( "Error: " + errorThrown );
+                })
+
+    });
+
+</script>
 </html>

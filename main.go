@@ -8,39 +8,31 @@ import (
 	"net/http"
 
 	_ "github.com/mattn/go-sqlite3"
-	//"gopkg.in/yaml.v2"
 	"html/template"
-	//"io/ioutil"
-	//"regexp"
-	//"strconv"
-	"strings"
 	"bufio"
 	"bytes"
+	"github.com/brainboxweb/go-posts-admin/search"
+	"strings"
+	"encoding/json"
 )
-
-const postsFile = "data/posts.yml"
-const tweetsFile = "data/tweets.yml"
-const tagsFile = "data/tags.yml"
-
-type Paste struct {
-	Expiration string
-	Content    []byte
-	UUID       string
-}
 
 func main() {
 	r := mux.NewRouter()
 	// Routes consist of a path and a handler function.
+
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("."))))
+
 	r.HandleFunc("/", IndexHandler)
 	r.HandleFunc("/posts/{id}", PostHandler)
 	r.HandleFunc("/new", NewPostHandler)
 	r.HandleFunc("/analytics", AnalyticsHandler)
+	r.HandleFunc("/ajax/{type}", AjaxHandler)
 
+	///ajax/top_result
 
 	// Bind to a port and pass our router in
-	log.Fatal(http.ListenAndServe(":8003", r))
+	log.Fatal(http.ListenAndServe(":8000", r))
 }
-
 
 type YouTubeData struct {
 	Id    string
@@ -49,16 +41,17 @@ type YouTubeData struct {
 }
 
 type Post struct {
-	Id          int
-	Slug        string
-	Title       string
-	Description string
-	Date        string
-	TopResult   string
-	Keywords    []string
-	YouTubeData YouTubeData
-	Body        string
-	Transcript  string
+	Id           int
+	Slug         string
+	Title        string
+	Description  string
+	Date         string
+	TopResult    string
+	Keywords     []string
+	Hashtags     []string
+	YouTubeData  YouTubeData
+	Body         string
+	Transcript   string
 	ClickToTweet string
 }
 
@@ -106,7 +99,6 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 func NewPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	//@todo - refactor database connection
@@ -121,12 +113,11 @@ func NewPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	r.ParseForm()
 
-
-	if r.Method=="POST"{
+	if r.Method == "POST" {
 
 		//-------   POST   ------
 
-		stmt, err := db.Prepare("INSERT INTO posts (id, slug, title, description, body) VALUES (?, ?, ?, ?, ?)" )
+		stmt, err := db.Prepare("INSERT INTO posts (id, slug, title, description, body) VALUES (?, ?, ?, ?, ?)")
 		if err != nil {
 			panic(err)
 		}
@@ -137,21 +128,20 @@ func NewPostHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		//----   YOUTUBE
-		stmt, err = db.Prepare("INSERT INTO youtube (id, post_id, body) VALUES (?, ?, ?)" )
+		stmt, err = db.Prepare("INSERT INTO youtube (id, post_id, body) VALUES (?, ?, ?)")
 		if err != nil {
 			panic(err)
 		}
-		dummyId := fmt.Sprintf("%s-DUMMY",  r.FormValue("id"))
+		dummyId := fmt.Sprintf("%s-DUMMY", r.FormValue("id"))
 		_, err = stmt.Exec(dummyId, r.FormValue("id"), "Dummy body")
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		//Redirect to the end page
-		route := fmt.Sprintf("/posts/%s",  r.FormValue("id"))
+		route := fmt.Sprintf("/posts/%s", r.FormValue("id"))
 		http.Redirect(w, r, route, 301)
 	}
-
 
 	t, err := template.ParseFiles("templates/new.html")
 	if err != nil {
@@ -162,8 +152,6 @@ func NewPostHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 }
-
-
 
 func PostHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -179,22 +167,22 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 
 	r.ParseForm()
 
-
-	if r.Method=="POST"{
+	if r.Method == "POST" {
 
 		//-------   POST   ------
 
-		stmtUpdate, err := db.Prepare("UPDATE posts SET slug = ?, title = ?, description = ?, topresult = ?, click_to_tweet = ?, body = ? , transcript = ? WHERE id = ?" )
+		stmtUpdate, err := db.Prepare("UPDATE posts SET slug = ?, title = ?, description = ?, published = ?, topresult = ?, click_to_tweet = ?, body = ? , transcript = ? WHERE id = ?")
 		if err != nil {
 			panic(err)
 		}
-		_, err = stmtUpdate.Exec(r.FormValue("slug"), r.FormValue("title"), r.FormValue("description"),  r.FormValue("top_result"), r.FormValue("click_to_tweet"), r.FormValue("body"), r.FormValue("transcript"), id)
+		_, err = stmtUpdate.Exec(r.FormValue("slug"), r.FormValue("title"), r.FormValue("description"), r.FormValue("published"), r.FormValue("top_result"), r.FormValue("click_to_tweet"), r.FormValue("body"), r.FormValue("transcript"), id)
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer stmtUpdate.Close()
 
 		//YouTube
-		stmtUpdateYT, err := db.Prepare("UPDATE youtube SET id = ?, body = ? WHERE post_id = ?" )
+		stmtUpdateYT, err := db.Prepare("UPDATE youtube SET id = ?, body = ? WHERE post_id = ?")
 		if err != nil {
 			panic(err)
 		}
@@ -202,23 +190,27 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer stmtUpdateYT.Close()
 
 		//-------   KEYWORDS   ------
 		//DELETE
-		stmt, err := db.Prepare("DELETE FROM posts_keywords_xref WHERE post_id = ?" )
+		stmtDelYT, err := db.Prepare("DELETE FROM posts_keywords_xref WHERE post_id = ?")
 		if err != nil {
 			panic(err)
 		}
-		_, err = stmt.Exec(id)
+		_, err = stmtDelYT.Exec(id)
 		if err != nil {
 			log.Fatal(err)
 		}
+		stmtDelYT.Close()
 
 		//INSERT
-		stmt2, err := db.Prepare("INSERT INTO  posts_keywords_xref (post_id, keyword_id, sort_order) VALUES (?, ?, ?)" )
+		stmtYT, err := db.Prepare("INSERT INTO  posts_keywords_xref (post_id, keyword_id, sort_order) VALUES (?, ?, ?)")
 		if err != nil {
 			panic(err)
 		}
+		defer stmtYT.Close()
+
 		reader := bytes.NewReader([]byte(r.FormValue("keywords")))
 		scanner := bufio.NewScanner(reader)
 
@@ -230,7 +222,42 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 			if keyword == "" {
 				continue
 			}
-			_, err = stmt2.Exec(id, keyword, i)
+			_, err = stmtYT.Exec(id, keyword, i)
+			if err != nil {
+				//do nothing: dupe
+			}
+		}
+
+		//-------   HASHTAGS   ------
+		//DELETE
+		stmtDelHash, err := db.Prepare("DELETE FROM posts_hashtags_xref WHERE post_id = ?")
+		if err != nil {
+			panic(err)
+		}
+		_, err = stmtDelHash.Exec(id)
+		if err != nil {
+			log.Fatal(err)
+		}
+		stmtDelHash.Close()
+
+		//INSERT
+		stmtHash, err := db.Prepare("INSERT INTO  posts_hashtags_xref (post_id, hashtag_id, sort_order) VALUES (?, ?, ?)")
+		if err != nil {
+			panic(err)
+		}
+		defer stmtHash.Close()
+		reader = bytes.NewReader([]byte(r.FormValue("hashtags")))
+		scanner = bufio.NewScanner(reader)
+
+		i = 0
+		for scanner.Scan() {
+			i++
+			hashtag := scanner.Text()
+			hashtag = strings.TrimSpace(hashtag)
+			if hashtag == "" {
+				continue
+			}
+			_, err = stmtHash.Exec(id, hashtag, i)
 			if err != nil {
 				//do nothing: dupe
 			}
@@ -238,7 +265,7 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//POST
-	rows, err := db.Query("SELECT p.id, p.slug, p.title, p.description, p.body,  COALESCE(p.click_to_tweet, '') AS click_to_tweet,   COALESCE(p.topresult, '') AS topresult,   COALESCE(p.transcript, '') AS transcript,    yt.id, yt.body FROM posts AS p  LEFT JOIN youtube AS yt ON p.id = yt.post_id WHERE p.id = ?", id)
+	rows, err := db.Query("SELECT p.id, p.slug, p.title, p.description, COALESCE(p.published, ''), p.body,  COALESCE(p.click_to_tweet, '') AS click_to_tweet,   COALESCE(p.topresult, '') AS topresult,   COALESCE(p.transcript, '') AS transcript,    yt.id, yt.body FROM posts AS p  LEFT JOIN youtube AS yt ON p.id = yt.post_id WHERE p.id = ?", id)
 	if err != nil {
 		panic(err)
 	}
@@ -246,12 +273,11 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 
 	post := new(Post)
 	if rows.Next() {
-		err = rows.Scan(&post.Id, &post.Slug, &post.Title, &post.Description, &post.Body,  &post.ClickToTweet, &post.TopResult, &post.Transcript, &post.YouTubeData.Id, &post.YouTubeData.Body)
+		err = rows.Scan(&post.Id, &post.Slug, &post.Title, &post.Description, &post.Date, &post.Body, &post.ClickToTweet, &post.TopResult, &post.Transcript, &post.YouTubeData.Id, &post.YouTubeData.Body)
 		if err != nil {
 			panic(err)
 		}
 	}
-
 
 	//Keywords
 	rows2, err := db.Query("SELECT keyword_id FROM posts_keywords_xref WHERE post_id = ?  ORDER BY sort_order", id)
@@ -271,13 +297,35 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 		keywords = append(keywords, keyword)
 	}
 
+
+	//Hashtags
+	rows3, err := db.Query("SELECT hashtag_id FROM posts_hashtags_xref WHERE post_id = ?  ORDER BY sort_order ASC", id)
+	if err != nil {
+		panic(err)
+	}
+	defer rows3.Close()
+
+	hashtags := []string{}
+	for rows3.Next() {
+
+		hashtag := ""
+		err = rows3.Scan(&hashtag)
+		if err != nil {
+			panic(err)
+		}
+		hashtags = append(hashtags, hashtag)
+	}
+	
+
 	//---- Page data
 	data := struct {
-		Post Post
+		Post     Post
 		Keywords []string
+		Hashtags []string
 	}{
 		*post,
 		keywords,
+		hashtags,
 	}
 
 	t, err := template.ParseFiles("templates/post.html")
@@ -291,8 +339,6 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
-
 func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 
 	//@todo - refactor database connection
@@ -302,14 +348,12 @@ func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-
 	//Too many keywords
 	rows, err := db.Query("SELECT p.id, p.title FROM posts AS p LEFT JOIN posts_keywords_xref kw ON p.id = kw.post_id GROUP BY p.id HAVING COUNT(kw.keyword_id) > 8 ORDER BY COUNT(kw.keyword_id) DESC")
 	if err != nil {
 		panic(err)
 	}
 	defer rows.Close()
-
 
 	posts := []Post{}
 	for rows.Next() {
@@ -337,6 +381,247 @@ func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func AjaxHandler(w http.ResponseWriter, r *http.Request) {
+
+	//@todo - refactor database connection
+	db, err := sql.Open("sqlite3", "./db/dtp.db")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	vars := mux.Vars(r)
+	switch vars["type"] {
+	case "topresult":
+		keyword := r.URL.Query().Get("keyword")
+		fmt.Println(keyword)
+		result := search.TopResult(keyword)
+		w.Write([]byte(result))
+
+	case "shorttitle":
+		results := shortTitle(db)
+		bytes, err := json.Marshal(results)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		w.Write(bytes)
+
+	case "longtitle":
+		results := longTitle(db)
+		bytes, err := json.Marshal(results)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		w.Write(bytes)
+	case "shortdescription":
+		results := shortDescription(db)
+		bytes, err := json.Marshal(results)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		w.Write(bytes)
+
+	case "longdescription":
+		results := longDescription(db)
+		bytes, err := json.Marshal(results)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		w.Write(bytes)
+	case "shortbody":
+		results := shortBody(db)
+		bytes, err := json.Marshal(results)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		w.Write(bytes)
+
+	case "shortyoutubebody":
+		results := shortYouTubeBody(db)
+		bytes, err := json.Marshal(results)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		w.Write(bytes)
+
+	case "toofewkeywords":
+		results := tooFewKeywords(db)
+		bytes, err := json.Marshal(results)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		w.Write(bytes)
+
+	case "toomanykeywords":
+		results := tooManyKeywords(db)
+		bytes, err := json.Marshal(results)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		w.Write(bytes)
+
+	}
+}
+
+type Result struct {
+	Id    int
+	Title string
+	Count int
+}
+
+func shortTitle(db *sql.DB) []Result {
+	rows, err := db.Query("SELECT id, title, LENGTH(title) FROM posts WHERE LENGTH(title) < 40 ORDER BY LENGTH(title) ASC")
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	results := []Result{}
+	for rows.Next() {
+		r := new(Result)
+		err = rows.Scan(&r.Id, &r.Title, &r.Count)
+		if err != nil {
+			panic(err)
+		}
+		results = append(results, *r)
+	}
+	return results
+}
+
+func longTitle(db *sql.DB) []Result {
+	rows, err := db.Query("SELECT id, title, LENGTH(title) FROM posts WHERE LENGTH(title) > 120 ORDER BY LENGTH(title) DESC")
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	results := []Result{}
+	for rows.Next() {
+		r := new(Result)
+		err = rows.Scan(&r.Id, &r.Title, &r.Count)
+		if err != nil {
+			panic(err)
+		}
+		results = append(results, *r)
+	}
+	return results
+}
+
+func shortDescription(db *sql.DB) []Result {
+	rows, err := db.Query("SELECT id, title, LENGTH(description) FROM posts WHERE LENGTH(description) < 40 ORDER BY LENGTH(description) ASC")
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	results := []Result{}
+	for rows.Next() {
+		r := new(Result)
+		err = rows.Scan(&r.Id, &r.Title, &r.Count)
+		if err != nil {
+			panic(err)
+		}
+		results = append(results, *r)
+	}
+	return results
+}
+
+func longDescription(db *sql.DB) []Result {
+	rows, err := db.Query("SELECT id, title, LENGTH(description) FROM posts WHERE LENGTH(description) > 120 ORDER BY LENGTH(description) DESC")
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	results := []Result{}
+	for rows.Next() {
+		r := new(Result)
+		err = rows.Scan(&r.Id, &r.Title, &r.Count)
+		if err != nil {
+			panic(err)
+		}
+		results = append(results, *r)
+	}
+	return results
+}
+
+func shortBody(db *sql.DB) []Result {
+	rows, err := db.Query("SELECT id, title, LENGTH(body) FROM posts WHERE LENGTH(body) < 200 ORDER BY LENGTH(body) ASC")
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	results := []Result{}
+	for rows.Next() {
+		r := new(Result)
+		err = rows.Scan(&r.Id, &r.Title, &r.Count)
+		if err != nil {
+			panic(err)
+		}
+		results = append(results, *r)
+	}
+	return results
+}
+
+func shortYouTubeBody(db *sql.DB) []Result {
+	rows, err := db.Query("SELECT p.id, p.title, LENGTH(yt.body) AS cnt FROM posts p LEFT JOIN  youtube yt ON p.id=yt.post_id WHERE cnt < 200 ORDER BY cnt ASC")
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	results := []Result{}
+	for rows.Next() {
+		r := new(Result)
+		err = rows.Scan(&r.Id, &r.Title, &r.Count)
+		if err != nil {
+			panic(err)
+		}
+		results = append(results, *r)
+	}
+	return results
+}
+
+func tooFewKeywords(db *sql.DB) []Result {
+	rows, err := db.Query("SELECT p.id, p.title, COUNT(xref.keyword_id) AS count FROM posts p LEFT JOIN posts_keywords_xref xref ON p.id=xref.post_id GROUP BY p.id HAVING count <6 ORDER BY count ASC")
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	results := []Result{}
+	for rows.Next() {
+		r := new(Result)
+		err = rows.Scan(&r.Id, &r.Title, &r.Count)
+		if err != nil {
+			panic(err)
+		}
+		results = append(results, *r)
+	}
+	return results
+}
+
+
+func tooManyKeywords(db *sql.DB) []Result {
+	rows, err := db.Query("SELECT p.id, p.title, COUNT(xref.keyword_id) AS count FROM posts p LEFT JOIN posts_keywords_xref xref ON p.id=xref.post_id GROUP BY p.id HAVING count > 8 ORDER BY count DESC")
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	results := []Result{}
+	for rows.Next() {
+		r := new(Result)
+		err = rows.Scan(&r.Id, &r.Title, &r.Count)
+		if err != nil {
+			panic(err)
+		}
+		results = append(results, *r)
+	}
+	return results
 }
 
 

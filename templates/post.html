@@ -36,6 +36,7 @@
     <img src="http://www.developmentthatpays.com/images/episode{{ .Post.Id }}_333.png" />
     <p>Title: max length 70 (for YouTube)</p>
     <p>Description: max length 150 (for Google)</p>
+    <p>Body min length: 200</p>
 </div>
 <h1>{{ .Post.Id }} - {{ .Post.Title }}</h1>
 
@@ -57,15 +58,29 @@
             <span id="chars_description"></span>
         </li>
         <li>
+            <label>Published</label>
+            <input name="published" value="{{ .Post.Date }}" id="input_published" />
+        </li>
+        <li>
+            <label>Hashtags</label>
+            <textarea name="hashtags" class="hashtags">
+{{ range .Hashtags}}{{ .}}
+{{ end }}</textarea>
+        </li>
+        <li>
             <label>Keywords</label>
-
             <textarea name="keywords" class="keywords">
 {{ range .Keywords}}{{ .}}
 {{ end }}</textarea>
         </li>
-        <li>
+        <li id="top_keyword">
             <label>Top Result</label>
             <input name="top_result" value="{{ .Post.TopResult }}" />
+            {{ if .Keywords }}
+            <span>{{ index .Keywords 0 }}</span>
+            <a href="/ajax/top_result">Suggest</a>
+            {{ end }}
+
         </li>
         <li>
             <label>Click to Tweet</label>
@@ -103,7 +118,7 @@
 
 
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="/static/jquery-3.1.1.min.js"></script>
 <script>
     $(document).ready(function(){
 
@@ -128,6 +143,60 @@
             var length = $(this).val().length;
             var length = maxLengthDescription - length;
             $('#chars_description').text(length);
+        });
+
+        $('#top_keyword a').click(function(event) {
+            event.preventDefault();
+
+    //        http://localhost:8003/ajax/topresult?keyword=google
+            $.ajax({
+                // The URL for the request
+                url: "/ajax/topresult",
+                // The data to send (will be converted to a query string)
+                data: {
+                    keyword: $('#top_keyword span').text()
+                },
+                // Whether this is a POST or GET request
+                type: "GET",
+                // The type of data we expect back
+                dataType : "text",
+            })
+            // Code to run if the request succeeds (is done);
+            // The response is passed to the function
+            .done(function( result ) {
+
+                console.log(result)
+                $('#top_keyword input').val(result)
+
+
+                var img = $('<img />',
+                        {
+                            src: 'http://img.youtube.com/vi/' + result + '/sddefault.jpg',
+
+                        })
+                        .appendTo($('#top_keyword'));
+
+
+//                $('#top_keyword').appendChild()http://img.youtube.com/vi/TK7lsZ4goIo/default.jpg
+
+
+    //
+    //            $( "<h1>" ).text( json.title ).appendTo( "body" );
+    //            $( "<div class=\"content\">").html( json.html ).appendTo( "body" );
+            })
+            // Code to run if the request fails; the raw request and
+            // status codes are passed to the function
+            .fail(function( xhr, status, errorThrown ) {
+                alert( "Sorry, there was a problem!" );
+                console.log( "Error: " + errorThrown );
+                console.log( "Status: " + status );
+                console.dir( xhr );
+            })
+            // Code to run regardless of success or failure;
+            .always(function( xhr, status ) {
+//                alert( "The request is complete!" );
+            });
+
         });
 
     });
